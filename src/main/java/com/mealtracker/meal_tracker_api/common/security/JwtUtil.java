@@ -1,4 +1,4 @@
-package com.mealtracker.meal_tracker_api.auth.security;
+package com.mealtracker.meal_tracker_api.common.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;

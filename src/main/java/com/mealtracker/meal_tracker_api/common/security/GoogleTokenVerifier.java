@@ -1,4 +1,4 @@
-package com.mealtracker.meal_tracker_api.auth.security;
+package com.mealtracker.meal_tracker_api.common.security;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;

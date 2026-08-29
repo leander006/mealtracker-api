@@ -1,4 +1,4 @@
-package com.mealtracker.meal_tracker_api.auth.security;
+package com.mealtracker.meal_tracker_api.common.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

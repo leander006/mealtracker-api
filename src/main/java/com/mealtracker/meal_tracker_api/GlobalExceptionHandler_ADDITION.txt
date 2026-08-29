@@ -1,0 +1,10 @@
+// Add this import to GlobalExceptionHandler.java:
+import com.mealtracker.meal_tracker_api.meals.service.MealNotFoundException;
+
+// Add this method inside the GlobalExceptionHandler class:
+
+@ExceptionHandler(MealNotFoundException.class)
+public ResponseEntity<Map<String, String>> handleMealNotFound(MealNotFoundException ex) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(Map.of("error", ex.getMessage()));
+}
