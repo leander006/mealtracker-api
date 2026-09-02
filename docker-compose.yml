@@ -26,6 +26,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
+      ml-service:
+        condition: service_started
+  ml-service:
+    build: /Users/leanderdsilva/Desktop/meal-tracker-ml-service
+    container_name: mealtracker-ml
+    ports:
+      - "8000:8000"
 volumes:
   postgres-data:
