@@ -2,12 +2,10 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: mealtracker-postgres
-    environment:
-      POSTGRES_DB: mealtracker
-      POSTGRES_USER: mealtracker_user
-      POSTGRES_PASSWORD: changeme
     ports:
       - "5432:5432"
+    env_file:
+      - .env
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
