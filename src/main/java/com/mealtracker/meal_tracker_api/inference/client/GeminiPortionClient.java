@@ -14,22 +14,23 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class GptPortionClient {
+public class GeminiPortionClient {
 
-    private final RestClient openAiRestClient;
+    private final RestClient geminiRestClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${openai.api.key}")
+    @Value("${gemini.api.key}")
     private String apiKey;
 
-    @Value("${openai.api.model:gpt-5-mini}")
+    @Value("${gemini.api.model:gemini-2.5-flash}")
     private String model;
 
     /**
-     * Same job as the Claude version: given a KNOWN food label, estimate
-     * portion size in grams. OpenAI's request/response shape differs from
-     * Claude's - this is the only class that needed to change when
-     * switching providers, everything else in the pipeline is unaffected.
+     * Same job as the OpenAI/Claude versions before it: given a KNOWN food
+     * label, estimate portion size in grams. Gemini's request shape is
+     * "inline_data" for images rather than OpenAI's data-URI or Claude's
+     * "source" block - this is the only class that changes when swapping
+     * providers.
      */
     public PortionEstimate estimatePortion(byte[] imageBytes, String foodLabel) {
         String base64Image = Base64.getEncoder().encodeToString(imageBytes);
@@ -42,21 +43,15 @@ public class GptPortionClient {
                 {"estimatedPortionGrams": <integer>}
                 """.formatted(foodLabel);
 
-        // OpenAI's chat completions format: image goes inside "content" as
-        // an image_url object with a data URI, not a separate "source"
-        // block like Claude's shape.
         Map<String, Object> requestBody = Map.of(
-                "model", model,
-                "max_tokens", 150,
-                "messages", List.of(
+                "contents", List.of(
                         Map.of(
-                                "role", "user",
-                                "content", List.of(
-                                        Map.of("type", "text", "text", prompt),
+                                "parts", List.of(
+                                        Map.of("text", prompt),
                                         Map.of(
-                                                "type", "image_url",
-                                                "image_url", Map.of(
-                                                        "url", "data:image/jpeg;base64," + base64Image
+                                                "inline_data", Map.of(
+                                                        "mime_type", "image/jpeg",
+                                                        "data", base64Image
                                                 )
                                         )
                                 )
@@ -64,9 +59,12 @@ public class GptPortionClient {
                 )
         );
 
-        String rawResponse = openAiRestClient.post()
-                .uri("/v1/chat/completions")
-                .header("Authorization", "Bearer " + apiKey)
+        // API key goes as a query param for Gemini's REST API, not a header.
+        String rawResponse = geminiRestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/v1beta/models/{model}:generateContent")
+                        .queryParam("key", apiKey)
+                        .build(model))
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .body(requestBody)
                 .retrieve()
@@ -78,16 +76,19 @@ public class GptPortionClient {
     private PortionEstimate parsePortionFromResponse(String rawResponse) {
         try {
             JsonNode root = objectMapper.readTree(rawResponse);
-            // OpenAI's response shape: { choices: [ { message: { content: "..." } } ] }
-            String textContent = root.path("choices").get(0)
-                    .path("message").path("content").asText();
+            // Gemini's response shape: { candidates: [ { content: { parts: [ { text: "..." } ] } } ] }
+            String textContent = root.path("candidates").get(0)
+                    .path("content").path("parts").get(0)
+                    .path("text").asText();
 
-            JsonNode portionJson = objectMapper.readTree(textContent);
+            // Gemini sometimes wraps JSON in markdown code fences despite
+            // instructions - strip those before parsing if present.
+            String cleaned = textContent.replaceAll("```json", "").replaceAll("```", "").trim();
+
+            JsonNode portionJson = objectMapper.readTree(cleaned);
             int grams = portionJson.path("estimatedPortionGrams").asInt();
             return new PortionEstimate(grams);
         } catch (Exception e) {
-            // Same graceful fallback as before - don't fail the whole
-            // scan over a parsing hiccup.
             return new PortionEstimate(150);
         }
     }

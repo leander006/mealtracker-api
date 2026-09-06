@@ -1,6 +1,6 @@
 package com.mealtracker.meal_tracker_api.inference.service;
 
-import com.mealtracker.meal_tracker_api.inference.client.GptPortionClient;
+import com.mealtracker.meal_tracker_api.inference.client.GeminiPortionClient;
 import com.mealtracker.meal_tracker_api.inference.client.MlServiceClient;
 import com.mealtracker.meal_tracker_api.inference.client.UsdaMacroClient;
 import com.mealtracker.meal_tracker_api.inference.dto.InferenceDtos.*;
@@ -16,7 +16,7 @@ public class InferenceService {
     private static final Logger log = LoggerFactory.getLogger(InferenceService.class);
 
     private final MlServiceClient mlServiceClient;
-    private final GptPortionClient gptPortionClient;
+    private final GeminiPortionClient geminiPortionClient;
     private final UsdaMacroClient usdaMacroClient;
 
     /**
@@ -31,9 +31,13 @@ public class InferenceService {
     public ScanResponse scan(byte[] imageBytes, String filename, String imageUrl) {
         ClassificationResult classification = mlServiceClient.classify(imageBytes, filename);
         log.info("Classified as {} (confidence={})", classification.foodLabel(), classification.confidence());
-
-        PortionEstimate portion = gptPortionClient.estimatePortion(imageBytes, classification.foodLabel());        log.info("Estimated portion: {}g", portion.estimatedPortionGrams());
-
+        PortionEstimate portion;
+        try {
+            portion = geminiPortionClient.estimatePortion(imageBytes, classification.foodLabel());
+        } catch (Exception e) {
+            log.warn("Portion estimation failed, using default fallback: {}", e.getMessage());
+            portion = new PortionEstimate(150);
+        }
         MacroLookupResult macros = usdaMacroClient.lookupMacros(
                 classification.foodLabel(), portion.estimatedPortionGrams());
 
