@@ -1,35 +1,14 @@
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: mealtracker-postgres
-    ports:
-      - "5432:5432"
-    env_file:
-      - .env
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mealtracker_user -d mealtracker"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+# Standalone compose for this repo. Runs the backend alone against your
+# Neon main DB and whatever ML_SERVICE_URL you point it at (localhost:8000
+# if you're also running ml-service locally, or your Render ml-service URL).
+#
+# Usage: cp .env.example .env, fill it in, then: docker compose up --build
 
-  app:
+services:
+  backend:
     build: .
-    container_name: mealtracker-app
     ports:
       - "8080:8080"
+      - "5005:5005"
     env_file:
       - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      ml-service:
-        condition: service_started
-  ml-service:
-    build: /Users/leanderdsilva/Desktop/meal-tracker-ml-service
-    container_name: mealtracker-ml
-    ports:
-      - "8000:8000"
-volumes:
-  postgres-data:
